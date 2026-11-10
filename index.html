@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0e1015">
+<title>Rota · 课表</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#0e1015;--card:#151922;--sub:#1c2330;--line:#232b3a;--text:#e6edf3;--dim:#6e7681;
+--blue:#58a6ff;--green:#7ee787;--gold:#ffd88a;--red:#ff6b6b;
+--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px)}
+body.light{
+  --bg:#f5f7fa; --card:#ffffff; --sub:#eef1f6; --line:#e3e8ef;
+  --text:#1a1f26; --dim:#6b7280; --blue:#2f6fd0; --green:#22a06b;
+  --gold:#c78a00; --red:#d64545;
+}
+body.light .cell.now{background:rgba(47,111,208,.07)}
+body.light .dcol.today{background:rgba(47,111,208,.10)}
+body.light .status{background:linear-gradient(135deg,rgba(47,111,208,.10),rgba(47,111,208,.03));
+border-color:rgba(47,111,208,.20)}
+body.light .mask{background:rgba(0,0,0,.32)}
+body.light .cell.empty{background:rgba(238,241,246,.6)}
+
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
+-webkit-font-smoothing:antialiased;overflow-x:hidden;padding-top:var(--safe-t);padding-bottom:var(--safe-b)}
+.app{max-width:560px;margin:0 auto;padding:14px 12px 24px}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 4px 12px}
+.brand{font-size:19px;font-weight:700;letter-spacing:.5px}
+.brand span{color:var(--blue)}
+.sub{font-size:11px;color:var(--dim);margin-top:2px}
+.hbtns{display:flex;gap:8px}
+.hbtn{width:34px;height:34px;border-radius:11px;background:var(--card);border:none;color:var(--text);
+font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s}
+.hbtn:active{transform:scale(.92)}
+
+.weekbar{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:16px;padding:12px 14px;margin-bottom:12px}
+.wbtn{width:34px;height:34px;border-radius:11px;background:var(--sub);border:none;color:var(--text);font-size:16px;
+display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s;flex-shrink:0}
+.wbtn:active{transform:scale(.92)}
+.wcenter{flex:1;text-align:center}
+.wlabel{font-size:15px;font-weight:700}
+.wsub{font-size:11px;color:var(--dim);margin-top:2px}
+
+.datebar{display:flex;gap:6px;margin-bottom:10px;padding-left:40px}
+.dcol{flex:1;text-align:center;padding:6px 0;border-radius:10px;position:relative}
+.dcol .dn{font-size:11px;color:var(--dim)}
+.dcol .dd{font-size:13px;font-weight:600;margin-top:2px}
+.dcol.today{background:rgba(88,166,255,.12)}
+.dcol.today .dn,.dcol.today .dd{color:var(--blue)}
+.dcol.today::after{content:"";position:absolute;bottom:1px;left:50%;transform:translateX(-50%);
+width:4px;height:4px;border-radius:50%;background:var(--blue)}
+
+.grid{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;gap:6px}
+.slot{width:34px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.slot .sn{font-size:11px;font-weight:700;color:var(--dim)}
+.slot .st{font-size:8px;color:#4a5262;line-height:1.15;text-align:center}
+.cell{flex:1;min-height:56px;border-radius:12px;background:var(--card);padding:7px 8px;display:flex;
+flex-direction:column;justify-content:center;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s}
+.cell:active{transform:scale(.97)}
+.cell.empty{background:rgba(21,25,34,.45)}
+.cell .cname{font-size:11.5px;font-weight:600;line-height:1.32;display:-webkit-box;-webkit-line-clamp:3;
+-webkit-box-orient:vertical;overflow:hidden}
+.cell .cmeta{font-size:9px;color:var(--dim);margin-top:3px;line-height:1.3;display:-webkit-box;
+-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cell.now{box-shadow:inset 0 0 0 1.5px var(--blue);background:rgba(88,166,255,.10)}
+.cell.past{opacity:.32;filter:saturate(.5)}
+.cell.past .cname{font-weight:500}
+
+/* 状态条 */
+.status{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:11px 14px;border-radius:14px;
+background:linear-gradient(135deg,rgba(88,166,255,.13),rgba(88,166,255,.04));border:1px solid rgba(88,166,255,.18)}
+.status.hide{display:none}
+.st-dot{width:7px;height:7px;border-radius:50%;background:var(--blue);flex-shrink:0;
+box-shadow:0 0 8px var(--blue);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+.st-txt{flex:1;font-size:12.5px;font-weight:600;line-height:1.35}
+.st-txt em{font-style:normal;color:var(--blue)}
+.st-time{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;flex-shrink:0}
+.cell .bar{position:absolute;left:0;top:7px;bottom:7px;width:2.5px;border-radius:2px}
+
+.switch{display:flex;gap:8px;margin-top:16px;background:var(--card);padding:6px;border-radius:14px}
+.sbtn{flex:1;padding:10px;border-radius:10px;background:transparent;border:none;color:var(--dim);
+font-size:13px;font-weight:600;cursor:pointer;transition:all .18s}
+.sbtn.on{background:var(--sub);color:var(--text)}
+
+footer{text-align:center;font-size:10px;color:#3d4451;margin-top:18px;line-height:1.6}
+.hint{margin-top:10px;font-size:10px;color:#4a5262;text-align:center;line-height:1.6}
+
+/* 底部抽屉 */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .22s;z-index:50}
+.mask.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-radius:22px 22px 0 0;
+padding:20px 18px calc(20px + var(--safe-b));transform:translateY(100%);transition:transform .28s cubic-bezier(.32,.72,0,1);z-index:51;max-height:86vh;overflow-y:auto}
+.sheet.on{transform:translateY(0)}
+.sheet h3{font-size:16px;font-weight:700;margin-bottom:4px}
+.sheet .sh{font-size:11px;color:var(--dim);margin-bottom:16px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;color:var(--dim);margin-bottom:5px}
+.field input{width:100%;background:var(--sub);border:1.5px solid transparent;border-radius:11px;padding:11px 13px;
+color:var(--text);font-size:14px;outline:none;transition:border-color .15s}
+.field input:focus{border-color:var(--blue)}
+.wrow{display:flex;align-items:center;gap:8px}
+.wrow input{width:64px;background:var(--sub);border:1.5px solid transparent;border-radius:11px;padding:9px 0;
+color:var(--text);font-size:14px;text-align:center;outline:none}
+.wrow input:focus{border-color:var(--blue)}
+.wrow span{font-size:13px;color:var(--dim)}
+.btns{display:flex;gap:10px;margin-top:18px}
+.btns button{flex:1;padding:13px;border-radius:13px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:transform .12s}
+.btns button:active{transform:scale(.97)}
+.b-save{background:var(--blue);color:#fff}
+.b-del{background:rgba(255,107,107,.15);color:var(--red)}
+.b-cancel{background:var(--sub);color:var(--text)}
+
+/* 提示条 */
+.weekgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:14px 0}
+.wcell{padding:13px 0;text-align:center;border-radius:11px;background:var(--sub);font-size:14px;
+font-weight:600;cursor:pointer;transition:transform .12s,background .15s;border:1.5px solid transparent}
+.wcell:active{transform:scale(.94)}
+.wcell.cur{background:var(--blue);color:#fff}
+.wcell.this{border-color:var(--blue);color:var(--blue)}
+.wcell.cur.this{color:#fff}
+
+.toast{position:fixed;left:50%;bottom:calc(30px + var(--safe-b));transform:translate(-50%,20px);
+background:rgba(30,36,48,.96);color:var(--text);font-size:13px;padding:11px 20px;border-radius:12px;
+opacity:0;pointer-events:none;transition:all .25s;z-index:99;white-space:nowrap}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* 识别预览 */
+.preview{width:100%;border-radius:12px;margin-bottom:12px;max-height:200px;object-fit:cover}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <div class="brand">Rota<span>.</span></div>
+      <div class="sub" id="setName">专升本 · 电气自动化技术</div>
+    </div>
+    <div class="hbtns">
+      <button class="hbtn" id="btnToday" title="回到本周" style="width:auto;padding:0 12px;font-size:12.5px;font-weight:600">今天</button>
+      <button class="hbtn" id="btnShare" title="生成图片">↗</button>
+      <button class="hbtn" id="btnOcr" title="识别课表">◉</button>
+      <button class="hbtn" id="btnTheme" title="主题">☾</button>
+    </div>
+  </header>
+
+  <div class="weekbar">
+    <button class="wbtn" id="prevW">‹</button>
+    <div class="wcenter">
+      <div class="wlabel" id="weekLabel">第 1 周</div>
+      <div class="wsub" id="weekSub"></div>
+    </div>
+    <button class="wbtn" id="nextW">›</button>
+  </div>
+
+  <div class="status hide" id="status">
+    <div class="st-dot"></div>
+    <div class="st-txt" id="stTxt"></div>
+    <div class="st-time" id="stTime"></div>
+  </div>
+
+  <div class="datebar" id="datebar"></div>
+  <div class="grid" id="grid"></div>
+
+  <div class="switch">
+    <button class="sbtn on" data-set="zsb">专升本</button>
+    <button class="sbtn" data-set="base">电气自动化</button>
+  </div>
+
+  <div class="hint">点任意格子上课 · 顶部按钮分享 / 识别</div>
+  <footer>iPhone：分享 → 添加到主屏幕，可当 App 用</footer>
+</div>
+
+<!-- 编辑抽屉 -->
+<div class="mask" id="mask"></div>
+<div class="sheet" id="sheet">
+  <h3 id="shTitle">编辑课程</h3>
+  <div class="sh" id="shSub"></div>
+  <div class="field"><label>课程名</label><input id="eName" placeholder="比如 高等数学"></div>
+  <div class="field"><label>老师</label><input id="eTeacher" placeholder="选填"></div>
+  <div class="field"><label>地点</label><input id="eRoom" placeholder="选填"></div>
+  <div class="field"><label>周次</label>
+    <div class="wrow">第 <input id="eFrom" value="1" inputmode="numeric"> 周 到 第 <input id="eTo" value="16" inputmode="numeric"> 周</div>
+  </div>
+  <div class="btns">
+    <button class="b-cancel" id="eCancel">取消</button>
+    <button class="b-del" id="eDel">删除</button>
+    <button class="b-save" id="eSave">保存</button>
+  </div>
+</div>
+
+<!-- 跳周面板 -->
+<div class="sheet" id="weekSheet">
+  <h3>跳到第几周</h3>
+  <div class="sh" id="wsSub"></div>
+  <div class="weekgrid" id="weekGrid"></div>
+  <div class="btns">
+    <button class="b-cancel" id="wsCancel">取消</button>
+  </div>
+</div>
+
+<!-- 学期设置面板 -->
+<div class="sheet" id="termSheet">
+  <h3>学期设置</h3>
+  <div class="sh">开学第一周的周一，用来算现在第几周</div>
+  <div class="field"><label>年份</label><input id="tY" inputmode="numeric"></div>
+  <div class="field"><label>月份</label><input id="tM" inputmode="numeric"></div>
+  <div class="field"><label>日</label><input id="tD" inputmode="numeric"></div>
+  <div class="btns">
+    <button class="b-cancel" id="tCancel">取消</button>
+    <button class="b-save" id="tSave">保存</button>
+  </div>
+</div>
+
+<!-- 详情抽屉 -->
+<div class="sheet" id="detailSheet">
+  <h3 id="dTitle">课程</h3>
+  <div class="sh" id="dSub"></div>
+  <div id="dBody"></div>
+  <div class="btns">
+    <button class="b-cancel" id="dClose">关闭</button>
+    <button class="b-save" id="dEdit">编辑</button>
+  </div>
+</div>
+
+<!-- 识别抽屉 -->
+<div class="sheet" id="ocrSheet">
+  <h3>识别课表</h3>
+  <div class="sh">上传课表截图，用 DeepSeek 视觉模型读出来。需要你自己的 API Key。</div>
+  <div class="field"><label>API Key（只存在这台设备上）</label>
+    <input id="ocrKey" type="password" placeholder="sk-..."></div>
+  <div class="field"><label>课表截图</label>
+    <input id="ocrFile" type="file" accept="image/*" style="padding:8px"></div>
+  <img class="preview" id="ocrPreview" style="display:none">
+  <div class="btns">
+    <button class="b-cancel" id="ocrCancel">取消</button>
+    <button class="b-save" id="ocrGo">开始识别</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DEFAULT_DATA = {
+ "base": [
+  [
+   {
+    "slot": 0,
+    "name": "高等数学",
+    "teacher": "王雯",
+    "room": "智能2-304",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 1,
+    "name": "大学英语1",
+    "teacher": "代玉萍",
+    "room": "智能2-207",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 2,
+    "name": "电工基础与技能训练",
+    "teacher": "李文杰",
+    "room": "智能1-203 电工电子实训室",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 4,
+    "name": "晚自习",
+    "teacher": "",
+    "room": "",
+    "from": 1,
+    "to": 16
+   }
+  ],
+  [
+   {
+    "slot": 0,
+    "name": "机械制图",
+    "teacher": "赵凤仙",
+    "room": "智能2-308",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 1,
+    "name": "思想道德与法治-形势与政策1",
+    "teacher": "崔建辉",
+    "room": "第四报告厅",
+    "from": 1,
+    "to": 16
+   },
+   {
+    "slot": 3,
+    "name": "电路焊接与检测实训",
+    "teacher": "冯亚茹",
+    "room": "智能1-204 集成电路焊接与检修实训室",
+    "from": 4,
+    "to": 16
+   }
+  ],
+  [
+   {
+    "slot": 0,
+    "name": "思想道德与法治-形势与政策1",
+    "teacher": "崔建辉",
+    "room": "第四报告厅",
+    "from": 1,
+    "to": 16
+   },
+   {
+    "slot": 1,
+    "name": "大学体育1",
+    "teacher": "魏业辉",
+    "room": "（操场／体育馆）",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 4,
+    "name": "晚自习",
+    "teacher": "",
+    "room": "",
+    "from": 1,
+    "to": 16
+   }
+  ],
+  [
+   {
+    "slot": 0,
+    "name": "人工智能导论",
+    "teacher": "赵莉莉",
+    "room": "智能1-303",
+    "from": 4,
+    "to": 15
+   },
+   {
+    "slot": 1,
+    "name": "大学生职业生涯规划",
+    "teacher": "杜敏",
+    "room": "智能2-307",
+    "from": 6,
+    "to": 13
+   },
+   {
+    "slot": 2,
+    "name": "机械制图",
+    "teacher": "赵凤仙",
+    "room": "智能2-308",
+    "from": 4,
+    "to": 16
+   }
+  ],
+  [
+   {
+    "slot": 0,
+    "name": "电工基础与技能训练",
+    "teacher": "李文杰",
+    "room": "智能2-309",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 1,
+    "name": "人工智能导论",
+    "teacher": "赵莉莉",
+    "room": "智能1-302",
+    "from": 4,
+    "to": 15
+   }
+  ]
+ ],
+ "zsb": [
+  [
+   {
+    "slot": 0,
+    "name": "计算机A",
+    "teacher": "陈绪凯",
+    "room": "吉纯楼125",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 1,
+    "name": "思想道德与法治-形势与政策1",
+    "teacher": "崔建辉",
+    "room": "第五报告厅",
+    "from": 1,
+    "to": 16
+   },
+   {
+    "slot": 3,
+    "name": "大学体育1",
+    "teacher": "王昱程",
+    "room": "（操场／体育馆）",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 4,
+    "name": "晚自习",
+    "teacher": "",
+    "room": "",
+    "from": 1,
+    "to": 16
+   }
+  ],
+  [
+   {
+    "slot": 0,
+    "name": "人工智能导论",
+    "teacher": "吉祥",
+    "room": "智能1-306",
+    "from": 4,
+    "to": 15
+   },
+   {
+    "slot": 1,
+    "name": "英语A",
+    "teacher": "孙丽媛",
+    "room": "吉纯楼125",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 3,
+    "name": "人工智能导论",
+    "teacher": "吉祥",
+    "room": "智能1-304",
+    "from": 4,
+    "to": 15
+   }
+  ],
+  [
+   {
+    "slot": 0,
+    "name": "电工基础与技能训练",
+    "teacher": "张熙凤",
+    "room": "智能1-201 低压电工培训实训室",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 1,
+    "name": "思想道德与法治-形势与政策1",
+    "teacher": "崔建辉",
+    "room": "第五报告厅",
+    "from": 1,
+    "to": 16
+   },
+   {
+    "slot": 2,
+    "name": "大学语文A",
+    "teacher": "相启鑫",
+    "room": "吉纯楼125",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 4,
+    "name": "晚自习",
+    "teacher": "",
+    "room": "",
+    "from": 1,
+    "to": 16
+   }
+  ],
+  [
+   {
+    "slot": 0,
+    "name": "机械制图",
+    "teacher": "孙宇",
+    "room": "智能1-304",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 1,
+    "name": "电工基础与技能训练",
+    "teacher": "张熙凤",
+    "room": "智能2-310",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 3,
+    "name": "高等数学A",
+    "teacher": "付文",
+    "room": "吉纯楼125",
+    "from": 4,
+    "to": 16
+   }
+  ],
+  [
+   {
+    "slot": 0,
+    "name": "机械制图",
+    "teacher": "孙宇",
+    "room": "智能1-302",
+    "from": 4,
+    "to": 16
+   },
+   {
+    "slot": 1,
+    "name": "电路焊接与检测实训",
+    "teacher": "陈佳琪",
+    "room": "智能1-204 集成电路焊接与检修实训室",
+    "from": 4,
+    "to": 16
+   }
+  ]
+ ]
+};
+const META = {
+  base: { name: "电气自动化技术", term: [2026, 8, 14] },
+  zsb:  { name: "专升本 · 电气自动化技术", term: [2026, 8, 7] }
+};
+const BLOCK_NUM = ["第 1-2 节","第 3-4 节","第 5-6 节","第 7-8 节","晚自习"];
+const BLOCK_TIME = ["08:10\n10:00","10:20\n11:50","13:50\n15:30","15:50\n17:30","18:20\n20:00"];
+const DAY_CHAR = ["一","二","三","四","五"];
+const COLORS = ["#58a6ff","#7ee787","#ffd88a","#ff9ec0","#a78bfa","#67e8f9","#fbbf24","#f472b6"];
+
+let setKey = localStorage.getItem("rota.set") || "zsb";
+let week = 0;
+
+function loadData(key){
+  const raw = localStorage.getItem("rota.data." + key);
+  if (raw){
+    try { return JSON.parse(raw); } catch(e){}
+  }
+  return DEFAULT_DATA[key];
+}
+function saveData(key, days){
+  localStorage.setItem("rota.data." + key, JSON.stringify(days));
+}
+function termOf(key){
+  const raw = localStorage.getItem("rota.term." + key);
+  if (raw){ try { return JSON.parse(raw); } catch(e){} }
+  return META[key].term;
+}
+function termStart(key){ const t = termOf(key); return new Date(t[0], t[1], t[2]); }
+function mondayOfWeek(key, w){ return new Date(termStart(key).getTime() + (w-1)*7*86400000); }
+function currentWeek(key){
+  const now = new Date(); now.setHours(0,0,0,0);
+  return Math.floor((now - termStart(key)) / 86400000 / 7) + 1;
+}
+function fmtDate(d){ return (d.getMonth()+1) + "/" + d.getDate(); }
+function todayIdx(){ const w = new Date().getDay(); return w === 0 ? -1 : w - 1; }
+function colorOf(name){
+  let h = 0; for (let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i))|0;
+  return COLORS[Math.abs(h) % COLORS.length];
+}
+
+/* ---------- 主题 ---------- */
+function applyTheme(){
+  const light = localStorage.getItem("rota.theme") === "light";
+  document.body.classList.toggle("light", light);
+  document.getElementById("btnTheme").textContent = light ? "☀" : "☾";
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", light ? "#f5f7fa" : "#0e1015");
+}
+document.getElementById("btnTheme").addEventListener("click", () => {
+  const light = localStorage.getItem("rota.theme") === "light";
+  localStorage.setItem("rota.theme", light ? "dark" : "light");
+  applyTheme();
+});
+
+function nowHm(){
+  const n = new Date();
+  return n.getHours() * 100 + n.getMinutes();
+}
+function hmToMin(hm){
+  return Math.floor(hm / 100) * 60 + (hm % 100);
+}
+function leftText(min){
+  if (min <= 0) return "现在";
+  if (min < 60) return min + " 分钟";
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? h + " 小时 " + m + " 分" : h + " 小时";
+}
+
+/** 顶部的「距离上课/下课还有多久」 */
+function tick(){
+  const box = document.getElementById("status");
+  const txt = document.getElementById("stTxt");
+  const tm = document.getElementById("stTime");
+  const cw = currentWeek(setKey);
+  const ti = todayIdx();
+
+  // 只有在本周、且是工作日才有意义
+  if (week !== cw || ti < 0){ box.classList.add("hide"); return; }
+
+  const cur = nowHm();
+  const curMin = hmToMin(cur);
+  const days = loadData(setKey);
+  const todayList = days[ti] || [];
+
+  for (let s = 0; s < 5; s++){
+    const t = BLOCK_TIME[s].split("\n");
+    const st = +t[0].replace(":",""), en = +t[1].replace(":","");
+    const stMin = hmToMin(st), enMin = hmToMin(en);
+    const c = todayList.find(x => x.slot === s && week >= x.from && week <= x.to);
+
+    // 正在上课
+    if (cur >= st && cur <= en){
+      if (c){
+        txt.innerHTML = "正在上 <em>" + c.name + "</em>";
+        tm.textContent = "还有 " + leftText(enMin - curMin) + " 下课";
+      } else {
+        txt.innerHTML = "第 " + (s+1) + " 节　<em>没课</em>";
+        tm.textContent = "还有 " + leftText(enMin - curMin) + " 下课";
+      }
+      box.classList.remove("hide");
+      return;
+    }
+
+    // 还没到这一节
+    if (cur < st){
+      if (c){
+        txt.innerHTML = "下一节 <em>" + c.name + "</em>";
+        tm.textContent = leftText(stMin - curMin) + "后";
+      } else {
+        txt.innerHTML = "下一节 <em>没课</em>";
+        tm.textContent = leftText(stMin - curMin) + "后";
+      }
+      box.classList.remove("hide");
+      return;
+    }
+  }
+
+  // 今天全上完了
+  txt.innerHTML = "今天的课<em>上完了</em>";
+  tm.textContent = "";
+  box.classList.remove("hide");
+}
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => t.classList.remove("on"), 1800);
+}
+
+function render(){
+  const days = loadData(setKey);
+  const cw = currentWeek(setKey);
+  if (week <= 0) week = cw;
+
+  document.getElementById("setName").textContent = META[setKey].name;
+  document.getElementById("weekLabel").textContent = "第 " + week + " 周";
+  const mon = mondayOfWeek(setKey, week);
+  document.getElementById("weekSub").textContent =
+    fmtDate(mon) + " - " + fmtDate(new Date(mon.getTime()+4*86400000)) + (week === cw ? "　·　本周" : "");
+
+  const db = document.getElementById("datebar"); db.innerHTML = "";
+  const ti = todayIdx();
+  for (let i=0;i<5;i++){
+    const d = new Date(mon.getTime()+i*86400000);
+    const el = document.createElement("div");
+    el.className = "dcol" + (week === cw && i === ti ? " today" : "");
+    el.innerHTML = '<div class="dn">'+DAY_CHAR[i]+'</div><div class="dd">'+fmtDate(d)+'</div>';
+    db.appendChild(el);
+  }
+
+  const grid = document.getElementById("grid"); grid.innerHTML = "";
+  const usedNames = new Set();
+  days.forEach(d => d.forEach(c => usedNames.add(c.name)));
+  const nameList = Array.from(usedNames);
+  function paletteOf(n){ const i = nameList.indexOf(n); return COLORS[(i<0?0:i) % COLORS.length]; }
+
+  for (let s=0;s<5;s++){
+    const row = document.createElement("div"); row.className = "row";
+    const slot = document.createElement("div"); slot.className = "slot";
+    slot.innerHTML = '<div class="sn">'+(s+1)+'</div><div class="st">'+BLOCK_TIME[s].replace("\n","<br>")+'</div>';
+    row.appendChild(slot);
+
+    for (let d=0;d<5;d++){
+      const cell = document.createElement("div");
+      cell.className = "cell empty";
+      const list = days[d] || [];
+      const c = list.find(x => x.slot === s);
+      if (c && week >= c.from && week <= c.to){
+        cell.className = "cell";
+        const col = paletteOf(c.name);
+        cell.innerHTML =
+          '<div class="bar" style="background:'+col+'"></div>' +
+          '<div class="cname">'+c.name+'</div>' +
+          '<div class="cmeta">'+[c.teacher, c.room].filter(Boolean).join(" · ")+'</div>';
+        if (week === cw && d === ti){
+          const cur = nowHm();
+          const t = BLOCK_TIME[s].split("\n");
+          const st = +t[0].replace(":",""), en = +t[1].replace(":","");
+          if (cur >= st && cur <= en) cell.classList.add("now");
+          else if (cur > en) cell.classList.add("past");   // 今天已经上过了
+        }
+      }
+      cell.addEventListener("click", () => {
+        if (c) openDetail(d, s, c);
+        else openEdit(d, s, null);
+      });
+      row.appendChild(cell);
+    }
+    grid.appendChild(row);
+  }
+}
+
+/* ---------- 编辑 ---------- */
+let editing = { day: 0, slot: 0, existed: false };
+
+function openEdit(day, slot, course){
+  editing = { day, slot, existed: !!course };
+  document.getElementById("shTitle").textContent = course ? "编辑课程" : "添加课程";
+  document.getElementById("shSub").textContent = "星期" + DAY_CHAR[day] + "　·　" + BLOCK_NUM[slot];
+  document.getElementById("eName").value = course ? course.name : "";
+  document.getElementById("eTeacher").value = course ? (course.teacher||"") : "";
+  document.getElementById("eRoom").value = course ? (course.room||"") : "";
+  document.getElementById("eFrom").value = course ? course.from : 1;
+  document.getElementById("eTo").value = course ? course.to : 16;
+  document.getElementById("eDel").style.display = course ? "block" : "none";
+  document.getElementById("mask").classList.add("on");
+  document.getElementById("sheet").classList.add("on");
+}
+
+function closeEdit(){
+  document.getElementById("mask").classList.remove("on");
+  document.getElementById("sheet").classList.remove("on");
+  document.getElementById("detailSheet").classList.remove("on");
+}
+
+let detailCtx = null;
+
+function openDetail(day, slot, course){
+  detailCtx = { day, slot, course };
+  document.getElementById("dTitle").textContent = course.name;
+  document.getElementById("dSub").textContent = "星期" + DAY_CHAR[day] + "　·　" + BLOCK_NUM[slot] + "　·　" + BLOCK_TIME[slot].replace("\n", " - ");
+
+  const rows = [];
+  if (course.teacher) rows.push(["老师", course.teacher]);
+  if (course.room) rows.push(["地点", course.room]);
+  rows.push(["周次", "第 " + course.from + " - " + course.to + " 周"]);
+
+  let html = "";
+  rows.forEach(r => {
+    html += '<div style="display:flex;padding:10px 0;border-bottom:1px solid var(--line)">' +
+            '<div style="width:60px;color:var(--dim);font-size:12px">' + r[0] + '</div>' +
+            '<div style="flex:1;font-size:14px">' + r[1] + '</div></div>';
+  });
+  document.getElementById("dBody").innerHTML = html;
+
+  document.getElementById("mask").classList.add("on");
+  document.getElementById("detailSheet").classList.add("on");
+}
+
+document.getElementById("dClose").addEventListener("click", closeEdit);
+document.getElementById("dEdit").addEventListener("click", () => {
+  document.getElementById("detailSheet").classList.remove("on");
+  if (detailCtx) openEdit(detailCtx.day, detailCtx.slot, detailCtx.course);
+});
+
+document.getElementById("eCancel").addEventListener("click", closeEdit);
+document.getElementById("mask").addEventListener("click", () => {
+  closeEdit();
+  document.getElementById("ocrSheet").classList.remove("on");
+});
+
+document.getElementById("eSave").addEventListener("click", () => {
+  const name = document.getElementById("eName").value.trim();
+  if (!name){ toast("课程名不能空"); return; }
+  const days = JSON.parse(JSON.stringify(loadData(setKey)));
+  const day = days[editing.day] || (days[editing.day] = []);
+  const idx = day.findIndex(x => x.slot === editing.slot);
+  const course = {
+    slot: editing.slot,
+    name,
+    teacher: document.getElementById("eTeacher").value.trim(),
+    room: document.getElementById("eRoom").value.trim(),
+    from: parseInt(document.getElementById("eFrom").value, 10) || 1,
+    to: parseInt(document.getElementById("eTo").value, 10) || 16
+  };
+  if (idx >= 0) day[idx] = course; else day.push(course);
+  saveData(setKey, days);
+  closeEdit(); render(); toast("已保存");
+});
+
+document.getElementById("eDel").addEventListener("click", () => {
+  const days = JSON.parse(JSON.stringify(loadData(setKey)));
+  const day = days[editing.day] || [];
+  const idx = day.findIndex(x => x.slot === editing.slot);
+  if (idx >= 0) day.splice(idx, 1);
+  saveData(setKey, days);
+  closeEdit(); render(); toast("已删除");
+});
+
+/* ---------- 分享图 ---------- */
+document.getElementById("btnShare").addEventListener("click", () => {
+  const days = loadData(setKey);
+  const W = 1080, pad = 60;
+  const rowH = 150;
+  const H = 320 + 5 * rowH + 80;
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const g = cv.getContext("2d");
+
+  // 背景
+  g.fillStyle = "#0e1015"; g.fillRect(0, 0, W, H);
+  // 标题
+  g.fillStyle = "#e6edf3"; g.font = "bold 52px -apple-system,PingFang SC,sans-serif";
+  g.fillText("Rota", pad, 100);
+  g.fillStyle = "#6e7681"; g.font = "26px -apple-system,PingFang SC,sans-serif";
+  g.fillText(META[setKey].name + "　第 " + week + " 周", pad, 145);
+
+  const colW = (W - pad*2 - 70) / 5;
+  const x0 = pad + 70;
+  const y0 = 210;
+
+  // 表头
+  g.font = "24px -apple-system,PingFang SC,sans-serif";
+  g.fillStyle = "#6e7681";
+  for (let d=0; d<5; d++){
+    g.fillText("周" + DAY_CHAR[d], x0 + d*colW + colW/2 - 24, y0 - 16);
+  }
+
+  // 格子
+  for (let s=0; s<5; s++){
+    const y = y0 + s * rowH;
+    // 节次
+    g.fillStyle = "#4a5262"; g.font = "20px monospace";
+    g.fillText(String(s+1), pad, y + 40);
+    g.font = "16px monospace";
+    const t = BLOCK_TIME[s].split("\n");
+    g.fillText(t[0], pad, y + 66);
+    g.fillText(t[1], pad, y + 88);
+
+    for (let d=0; d<5; d++){
+      const x = x0 + d * colW;
+      const c = (days[d]||[]).find(v => v.slot === s);
+      const active = c && week >= c.from && week <= c.to;
+
+      g.fillStyle = active ? "#151922" : "rgba(21,25,34,0.4)";
+      roundRect(g, x + 4, y + 4, colW - 8, rowH - 12, 14);
+      g.fill();
+
+      if (active){
+        const col = colorOf(c.name);
+        g.fillStyle = col;
+        roundRect(g, x + 14, y + 20, 4, rowH - 44, 2);
+        g.fill();
+
+        g.fillStyle = "#e6edf3";
+        g.font = "bold 20px -apple-system,PingFang SC,sans-serif";
+        wrapText(g, c.name, x + 28, y + 42, colW - 40, 26, 3);
+
+        if (c.teacher || c.room){
+          g.fillStyle = "#6e7681"; g.font = "15px -apple-system,PingFang SC,sans-serif";
+          wrapText(g, [c.teacher, c.room].filter(Boolean).join(" · "),
+                   x + 28, y + 42 + 26*Math.min(2, Math.ceil(c.name.length/9)) + 8, colW - 40, 20, 2);
+        }
+      }
+    }
+  }
+
+  // 底部
+  g.fillStyle = "#3d4451"; g.font = "20px -apple-system,PingFang SC,sans-serif";
+  g.fillText("Rota · 校园课表", pad, H - 34);
+
+  cv.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Rota课表-" + week + "周.png";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    toast("图片已生成");
+  }, "image/png");
+});
+
+function roundRect(g, x, y, w, h, r){
+  g.beginPath();
+  g.moveTo(x+r, y);
+  g.arcTo(x+w, y, x+w, y+h, r);
+  g.arcTo(x+w, y+h, x, y+h, r);
+  g.arcTo(x, y+h, x, y, r);
+  g.arcTo(x, y, x+w, y, r);
+  g.closePath();
+}
+function wrapText(g, text, x, y, maxW, lineH, maxLines){
+  let line = "", lines = [];
+  for (const ch of text){
+    const test = line + ch;
+    if (g.measureText(test).width > maxW && line){
+      lines.push(line); line = ch;
+      if (lines.length >= maxLines - 1){ line += text.slice(text.indexOf(ch)+1); break; }
+    } else line = test;
+  }
+  if (line) lines.push(line);
+  lines.forEach((l, i) => g.fillText(l.length > 20 ? l.slice(0,20) + "…" : l, x, y + i*lineH));
+}
+
+/* ---------- 识别 ---------- */
+document.getElementById("btnOcr").addEventListener("click", () => {
+  document.getElementById("ocrKey").value = localStorage.getItem("rota.key") || "";
+  document.getElementById("mask").classList.add("on");
+  document.getElementById("ocrSheet").classList.add("on");
+});
+document.getElementById("ocrCancel").addEventListener("click", () => {
+  document.getElementById("mask").classList.remove("on");
+  document.getElementById("ocrSheet").classList.remove("on");
+});
+document.getElementById("ocrFile").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    const img = document.getElementById("ocrPreview");
+    img.src = r.result;
+    img.style.display = "block";
+  };
+  r.readAsDataURL(f);
+});
+
+document.getElementById("ocrGo").addEventListener("click", async () => {
+  const key = document.getElementById("ocrKey").value.trim();
+  const file = document.getElementById("ocrFile").files[0];
+  if (!key){ toast("先填 API Key"); return; }
+  if (!file){ toast("先选一张截图"); return; }
+  localStorage.setItem("rota.key", key);
+
+  const btn = document.getElementById("ocrGo");
+  btn.textContent = "识别中…"; btn.disabled = true;
+
+  try {
+    const b64 = await fileToBase64(file);
+    const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text:
+              "这是一张课表截图。请提取所有课程，输出 JSON 数组，不要任何多余文字。\n" +
+              "格式：[{\"day\":0-4,\"slot\":0-4,\"name\":\"课名\",\"teacher\":\"\",\"room\":\"\",\"from\":1,\"to\":16}]\n" +
+              "day: 0=周一...4=周五；slot: 0=第1-2节,1=3-4节,2=5-6节,3=7-8节,4=晚自习。周次从文字里读，读不到就填 1 和 16。" },
+            { type: "image_url", image_url: { url: b64 } }
+          ]
+        }],
+        temperature: 0
+      })
+    });
+    if (!resp.ok){
+      const t = await resp.text();
+      throw new Error("API 返回 " + resp.status + "：" + t.slice(0, 120));
+    }
+    const j = await resp.json();
+    let text = j.choices[0].message.content || "";
+    text = text.replace(/^[sS]*?[/, "[").replace(/][sS]*$/, "]");
+    const arr = JSON.parse(text);
+    if (!Array.isArray(arr) || !arr.length) throw new Error("没解析出课程");
+
+    const days = [[], [], [], [], []];
+    arr.forEach(c => {
+      if (c.day >= 0 && c.day < 5){
+        days[c.day].push({
+          slot: c.slot || 0, name: c.name || "", teacher: c.teacher || "",
+          room: c.room || "", from: c.from || 1, to: c.to || 16
+        });
+      }
+    });
+    saveData(setKey, days);
+    closeEdit();
+    document.getElementById("ocrSheet").classList.remove("on");
+    render();
+    toast("识别完成，共 " + arr.length + " 门课");
+  } catch (e) {
+    toast("失败：" + (e.message || e).slice(0, 60));
+  } finally {
+    btn.textContent = "开始识别"; btn.disabled = false;
+  }
+});
+
+function fileToBase64(file){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+/* ---------- 其他 ---------- */
+/* ---------- 今天 ---------- */
+function goToday(){
+  week = currentWeek(setKey);
+  render();
+  toast("回到第 " + week + " 周");
+}
+document.getElementById("btnToday").addEventListener("click", goToday);
+
+/* ---------- 跳周选择器 ---------- */
+function openWeekPicker(){
+  const cw = currentWeek(setKey);
+  document.getElementById("wsSub").textContent = "现在在第 " + cw + " 周";
+  const box = document.getElementById("weekGrid");
+  box.innerHTML = "";
+  for (let i = 1; i <= 30; i++){
+    const el = document.createElement("div");
+    el.className = "wcell" + (i === week ? " cur" : "") + (i === cw ? " this" : "");
+    el.textContent = i;
+    el.addEventListener("click", () => {
+      week = i;
+      document.getElementById("mask").classList.remove("on");
+      document.getElementById("weekSheet").classList.remove("on");
+      render();
+    });
+    box.appendChild(el);
+  }
+  document.getElementById("mask").classList.add("on");
+  document.getElementById("weekSheet").classList.add("on");
+}
+document.getElementById("weekLabel").addEventListener("click", openWeekPicker);
+document.getElementById("wsCancel").addEventListener("click", () => {
+  document.getElementById("mask").classList.remove("on");
+  document.getElementById("weekSheet").classList.remove("on");
+});
+
+/* ---------- 学期设置 ---------- */
+
+function openTerm(){
+  const t = termOf(setKey);
+  document.getElementById("tY").value = t[0];
+  document.getElementById("tM").value = t[1] + 1;
+  document.getElementById("tD").value = t[2];
+  document.getElementById("mask").classList.add("on");
+  document.getElementById("termSheet").classList.add("on");
+}
+document.getElementById("tCancel").addEventListener("click", () => {
+  document.getElementById("mask").classList.remove("on");
+  document.getElementById("termSheet").classList.remove("on");
+});
+document.getElementById("tSave").addEventListener("click", () => {
+  const y = parseInt(document.getElementById("tY").value, 10);
+  const m = parseInt(document.getElementById("tM").value, 10) - 1;
+  const d = parseInt(document.getElementById("tD").value, 10);
+  if (!y || isNaN(m) || !d){ toast("填完整"); return; }
+  localStorage.setItem("rota.term." + setKey, JSON.stringify([y, m, d]));
+  document.getElementById("mask").classList.remove("on");
+  document.getElementById("termSheet").classList.remove("on");
+  week = 0;
+  render();
+  toast("学期起点已改");
+});
+// 双击标题进学期设置
+document.getElementById("setName").addEventListener("dblclick", openTerm);
+
+function goWeek(delta){
+  const nw = week + delta;
+  if (nw < 1 || nw > 30) return;
+  week = nw;
+  // 轻量过渡：内容淡一下再回来
+  const g = document.getElementById("grid");
+  g.style.transition = "opacity .12s";
+  g.style.opacity = "0.35";
+  setTimeout(() => {
+    render();
+    g.style.opacity = "1";
+  }, 90);
+}
+
+document.getElementById("prevW").addEventListener("click", () => goWeek(-1));
+document.getElementById("nextW").addEventListener("click", () => goWeek(1));
+
+// 左右横滑切换周次（在课表区域内）
+(function(){
+  let sx = 0, sy = 0, st = 0, moved = false;
+  const zone = document.getElementById("grid");
+  zone.addEventListener("touchstart", e => {
+    const t = e.touches[0];
+    sx = t.clientX; sy = t.clientY; st = Date.now(); moved = false;
+  }, { passive: true });
+  zone.addEventListener("touchmove", e => {
+    const t = e.touches[0];
+    if (Math.abs(t.clientX - sx) > 12 || Math.abs(t.clientY - sy) > 12) moved = true;
+  }, { passive: true });
+  zone.addEventListener("touchend", e => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - sx;
+    const dy = t.clientY - sy;
+    // 横滑够长、比竖滑明显、而且不是慢拖
+    if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.6 && Date.now() - st < 700){
+      e.preventDefault();
+      goWeek(dx < 0 ? 1 : -1);
+    }
+  }, { passive: false });
+})();
+
+document.querySelectorAll(".sbtn").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".sbtn").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    setKey = b.dataset.set;
+    localStorage.setItem("rota.set", setKey);
+    week = 0; render();
+  });
+  b.classList.toggle("on", b.dataset.set === setKey);
+});
+
+applyTheme();
+render();
+tick();
+setInterval(tick, 20000);   // 20 秒刷一次就够，省电
+</script>
+</body>
+</html>
