@@ -11,7 +11,8 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--bg:#0e1015;--card:#151922;--sub:#1c2330;--line:#232b3a;--text:#e6edf3;--dim:#6e7681;
 --blue:#58a6ff;--green:#7ee787;--gold:#ffd88a;--red:#ff6b6b;
---safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px)}
+--safe-t:env(safe-area-inset-top,0px);--safe-b:env(safe-area-inset-bottom,0px);
+--cfs:11.5px;--mfs:9px}
 body.light{
   --bg:#f5f7fa; --card:#ffffff; --sub:#eef1f6; --line:#e3e8ef;
   --text:#1a1f26; --dim:#6b7280; --blue:#2f6fd0; --green:#22a06b;
@@ -63,9 +64,9 @@ width:4px;height:4px;border-radius:50%;background:var(--blue)}
 flex-direction:column;justify-content:center;overflow:hidden;position:relative;cursor:pointer;transition:transform .12s}
 .cell:active{transform:scale(.97)}
 .cell.empty{background:rgba(21,25,34,.45)}
-.cell .cname{font-size:11.5px;font-weight:600;line-height:1.32;display:-webkit-box;-webkit-line-clamp:3;
+.cell .cname{font-size:var(--cfs);font-weight:600;line-height:1.32;display:-webkit-box;-webkit-line-clamp:3;
 -webkit-box-orient:vertical;overflow:hidden}
-.cell .cmeta{font-size:9px;color:var(--dim);margin-top:3px;line-height:1.3;display:-webkit-box;
+.cell .cmeta{font-size:var(--mfs);color:var(--dim);margin-top:3px;line-height:1.3;display:-webkit-box;
 -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .cell.now{box-shadow:inset 0 0 0 1.5px var(--blue);background:rgba(88,166,255,.10)}
 .cell.past{opacity:.32;filter:saturate(.5)}
@@ -117,6 +118,11 @@ color:var(--text);font-size:14px;text-align:center;outline:none}
 .b-cancel{background:var(--sub);color:var(--text)}
 
 /* 提示条 */
+.seg{display:flex;gap:8px;margin-top:4px}
+.seg button{flex:1;padding:12px 0;border-radius:11px;background:var(--sub);border:1.5px solid transparent;
+color:var(--text);font-size:13.5px;font-weight:600;cursor:pointer;transition:all .15s}
+.seg button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+
 .weekgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:14px 0}
 .wcell{padding:13px 0;text-align:center;border-radius:11px;background:var(--sub);font-size:14px;
 font-weight:600;cursor:pointer;transition:transform .12s,background .15s;border:1.5px solid transparent}
@@ -211,6 +217,13 @@ opacity:0;pointer-events:none;transition:all .25s;z-index:99;white-space:nowrap}
   <div class="field"><label>年份</label><input id="tY" inputmode="numeric"></div>
   <div class="field"><label>月份</label><input id="tM" inputmode="numeric"></div>
   <div class="field"><label>日</label><input id="tD" inputmode="numeric"></div>
+  <div class="field"><label>课程格字号</label>
+    <div class="seg" id="fsSeg">
+      <button data-cfs="10" data-mfs="8">小</button>
+      <button data-cfs="11.5" data-mfs="9">中</button>
+      <button data-cfs="13" data-mfs="10">大</button>
+    </div>
+  </div>
   <div class="btns">
     <button class="b-cancel" id="tCancel">取消</button>
     <button class="b-save" id="tSave">保存</button>
@@ -559,6 +572,24 @@ function colorOf(name){
   let h = 0; for (let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i))|0;
   return COLORS[Math.abs(h) % COLORS.length];
 }
+
+/* ---------- 字号 ---------- */
+function applyFont(){
+  const raw = localStorage.getItem("rota.font");
+  const f = raw ? JSON.parse(raw) : { c: "11.5", m: "9" };
+  document.documentElement.style.setProperty("--cfs", f.c + "px");
+  document.documentElement.style.setProperty("--mfs", f.m + "px");
+  document.querySelectorAll("#fsSeg button").forEach(b => {
+    b.classList.toggle("on", b.dataset.cfs === f.c);
+  });
+}
+document.querySelectorAll("#fsSeg button").forEach(b => {
+  b.addEventListener("click", () => {
+    localStorage.setItem("rota.font", JSON.stringify({ c: b.dataset.cfs, m: b.dataset.mfs }));
+    applyFont();
+    render();
+  });
+});
 
 /* ---------- 主题 ---------- */
 function applyTheme(){
@@ -1115,6 +1146,7 @@ document.querySelectorAll(".sbtn").forEach(b => {
 });
 
 applyTheme();
+applyFont();
 render();
 tick();
 setInterval(tick, 20000);   // 20 秒刷一次就够，省电
